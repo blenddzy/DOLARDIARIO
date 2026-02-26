@@ -1,0 +1,33 @@
+name: Actualizar Datos BCRA Diarios
+
+on:
+  schedule:
+    # Se ejecuta de Lunes a Viernes a las 21:00 UTC (18:00 de Argentina)
+    - cron: '0 21 * * 1-5'
+  workflow_dispatch: # Este botón te permite correrlo a mano desde GitHub cuando quieras
+
+jobs:
+  actualizar-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Traer el código del repositorio
+        uses: actions/checkout@v3
+
+      - name: Configurar entorno Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Instalar librerías
+        run: pip install requests
+
+      - name: Ejecutar script de extracción
+        run: python fetch_bcra.py
+
+      - name: Guardar cambios y subir el JSON al repo
+        run: |
+          git config --global user.name 'Bot del Monitor Económico'
+          git config --global user.email 'bot@monitoreconomico.ar'
+          git add bcra_data.json
+          git commit -m "Actualización diaria de reservas BCRA" || exit 0
+          git push
