@@ -23,6 +23,16 @@ const inputPesos = document.getElementById('monto-pesos');
 const divResultado = document.getElementById('resultado-conversion');
 const valorReservas = document.getElementById('valor-reservas');
 const valorIntervencion = document.getElementById('valor-intervencion');
+const fechaReservas = document.getElementById('fecha-reservas');
+const fechaIntervencion = document.getElementById('fecha-intervencion');
+const btnToggleDesglose = document.getElementById('btn-toggle-desglose');
+
+// Modal desglose
+const modalDesglose = document.getElementById('modal-desglose');
+const modalDesgloseOverlay = modalDesglose.querySelector('.modal-overlay');
+const modalDesgloseCerrar = document.getElementById('modal-desglose-cerrar');
+const desgloseItems = document.getElementById('desglose-items');
+const desgloseFooter = document.getElementById('desglose-footer');
 
 // Modal
 const modal = document.getElementById('modal-grafico');
@@ -39,6 +49,18 @@ let datosAPI = [];
 let chartActual = null;
 let casaSeleccionada = null;
 
+// Almacén para datos históricos macro (llenado por obtenerDatosMacro)
+let historialMacro = {
+  riesgo: [],
+  inflacion: [],
+};
+let macroSeleccionado = null; // 'riesgo' o 'inflacion' cuando el modal muestra macro data
+
+const NOMBRES_MACRO = {
+  riesgo: 'Riesgo País',
+  inflacion: 'Inflación Mensual',
+};
+
 // ================================================
 // UTILIDADES
 // ================================================
@@ -52,6 +74,34 @@ function formatearNumero(numero) {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/**
+ * Formatea una fecha ISO a formato legible argentino.
+ * Ej: "2026-02-26T17:04:00.000Z" → "26 feb. 2026, 17:04"
+ * Ej: "2026-02-24" → "24 feb. 2026"
+ */
+function formatearFecha(fechaISO) {
+  if (!fechaISO) return '';
+
+  const fecha = new Date(fechaISO);
+  if (isNaN(fecha.getTime())) return fechaISO;
+
+  const opciones = {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    timeZone: 'America/Argentina/Buenos_Aires',
+  };
+
+  // Si tiene hora (no es solo fecha), agregarla
+  if (fechaISO.includes('T')) {
+    opciones.hour = '2-digit';
+    opciones.minute = '2-digit';
+    opciones.hour12 = false;
+  }
+
+  return fecha.toLocaleDateString('es-AR', opciones);
 }
 
 // ================================================
@@ -125,6 +175,12 @@ async function obtenerCotizaciones() {
 
       // Calcular variación diaria simulada
       calcularVariacion(tarjeta, cotizacion.venta);
+
+      // Mostrar fecha de actualización
+      const spanFecha = tarjeta.querySelector('.actualizacion');
+      if (spanFecha && cotizacion.fechaActualizacion) {
+        spanFecha.textContent = `Actualizado: ${formatearFecha(cotizacion.fechaActualizacion)}`;
+      }
     });
 
     // Guardar venta del Blue para la calculadora
@@ -171,7 +227,11 @@ function calcularVariacion(tarjeta, precioActual) {
 
 function abrirModal(casa) {
   casaSeleccionada = casa;
+  macroSeleccionado = null; // Asegurar que no estamos en modo macro
   modalTitulo.textContent = `Historial — ${NOMBRES_CASAS[casa] || casa}`;
+
+  // Restaurar botones de período originales
+  actualizarBotonesPeriodo(PERIODOS_ORIGINALES);
 
   // Resetear período a 7 días
   btnsPeriodo.forEach((btn) => btn.classList.remove('activo'));
@@ -386,6 +446,11 @@ async function obtenerDatosBCRA() {
       valorReservas.textContent = `U$D ${reservasFormateadas} Millones`;
     }
 
+    // Fecha de reservas
+    if (fechaReservas && datos.reservas.fecha) {
+      fechaReservas.textContent = `Dato del ${formatearFecha(datos.reservas.fecha)}`;
+    }
+
     // --- Intervención Diaria (MULC) ---
     if (valorIntervencion) {
       const monto = datos.intervencion.valor;
@@ -408,6 +473,14 @@ async function obtenerDatosBCRA() {
       }
     }
 
+    // Fecha de intervención
+    if (fechaIntervencion && datos.intervencion.fecha) {
+      fechaIntervencion.textContent = `MULC — Dato del ${formatearFecha(datos.intervencion.fecha)}`;
+    }
+
+    // --- Desglose de variación de reservas ---
+    renderizarDesglose(datos.desglose_variacion || []);
+
   } catch (error) {
     console.error('Error al obtener datos del BCRA:', error);
 
@@ -420,6 +493,75 @@ async function obtenerDatosBCRA() {
     }
   }
 }
+
+// ================================================
+// RENDERIZAR DESGLOSE DE RESERVAS (en modal)
+// ================================================
+
+// Almacén temporal del desglose y su fecha
+let datosDesglose = [];
+let fechasDesglose = '';
+
+/**
+ * Prepara los datos del desglose para mostrar en el modal.
+ * Se llama desde obtenerDatosBCRA.
+ */
+function renderizarDesglose(desglose) {
+  datosDesglose = desglose;
+  // Usar la fecha del primer item como referencia
+  if (desglose.length > 0 && desglose[0].fecha) {
+    fechasDesglose = desglose[0].fecha;
+  }
+}
+
+/**
+ * Abre el modal de desglose y genera las filas dinámicamente.
+ */
+function abrirModalDesglose() {
+  if (!desgloseItems || datosDesglose.length === 0) return;
+
+  desgloseItems.innerHTML = '';
+
+  datosDesglose.forEach((item) => {
+    const valor = item.valor;
+    const signo = valor >= 0 ? '+' : '−';
+    const valorFormateado = Math.abs(valor).toLocaleString('es-AR', {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    });
+    const claseColor = valor >= 0 ? 'positivo' : 'negativo';
+
+    const fila = document.createElement('div');
+    fila.className = 'desglose-item';
+    fila.innerHTML = `
+      <span class="desglose-nombre">${item.nombre}</span>
+      <span class="desglose-valor ${claseColor}">${signo} U$D ${valorFormateado} M</span>
+    `;
+    desgloseItems.appendChild(fila);
+  });
+
+  // Footer con fecha de actualización
+  if (desgloseFooter) {
+    desgloseFooter.textContent = fechasDesglose
+      ? `Última actualización: ${formatearFecha(fechasDesglose)}`
+      : '';
+  }
+
+  modalDesglose.classList.add('activo');
+  modalDesglose.setAttribute('aria-hidden', 'false');
+}
+
+function cerrarModalDesglose() {
+  modalDesglose.classList.remove('activo');
+  modalDesglose.setAttribute('aria-hidden', 'true');
+}
+
+// Event listeners del modal desglose
+if (btnToggleDesglose) {
+  btnToggleDesglose.addEventListener('click', abrirModalDesglose);
+}
+modalDesgloseCerrar.addEventListener('click', cerrarModalDesglose);
+modalDesgloseOverlay.addEventListener('click', cerrarModalDesglose);
 
 // ================================================
 // EVENT LISTENERS
@@ -440,37 +582,436 @@ tarjetas.forEach((tarjeta) => {
 modalCerrar.addEventListener('click', cerrarModal);
 modalOverlay.addEventListener('click', cerrarModal);
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') cerrarModal();
+  if (e.key === 'Escape') {
+    cerrarModal();
+    cerrarModalDesglose();
+  }
 });
 
-// Cambio de período
+// Cambio de período (routing dual: dólar o macro)
 btnsPeriodo.forEach((btn) => {
   btn.addEventListener('click', () => {
     btnsPeriodo.forEach((b) => b.classList.remove('activo'));
     btn.classList.add('activo');
 
     const dias = parseInt(btn.getAttribute('data-dias'), 10);
-    renderizarGrafico(dias);
+    if (macroSeleccionado) {
+      renderizarGraficoMacro(dias);
+    } else {
+      renderizarGrafico(dias);
+    }
   });
 });
 
-// Checkboxes → re-renderizar gráfico
-chkTendencia.addEventListener('change', () => {
+// Checkboxes → re-renderizar gráfico (routing dual)
+function reRenderChart() {
   const diasActivos = parseInt(
     document.querySelector('.btn-periodo.activo').getAttribute('data-dias'), 10
   );
-  renderizarGrafico(diasActivos);
+  if (macroSeleccionado) {
+    renderizarGraficoMacro(diasActivos);
+  } else {
+    renderizarGrafico(diasActivos);
+  }
+}
+
+chkTendencia.addEventListener('change', reRenderChart);
+chkMaxMin.addEventListener('change', reRenderChart);
+
+// ================================================
+// OBTENER DATOS MACROECONÓMICOS
+// ================================================
+
+async function obtenerDatosMacro() {
+
+  // --- Riesgo País ---
+  try {
+    const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    historialMacro.riesgo = data; // guardar historial completo
+    const ultimo = data[data.length - 1];
+
+    const elValor = document.getElementById('valor-riesgo');
+    const elFecha = document.getElementById('fecha-riesgo');
+
+    if (elValor) {
+      elValor.textContent = `${ultimo.valor.toLocaleString('es-AR')} puntos`;
+    }
+    if (elFecha && ultimo.fecha) {
+      elFecha.textContent = `Actualizado: ${formatearFecha(ultimo.fecha)}`;
+    }
+  } catch (err) {
+    console.error('Error Riesgo País:', err);
+    const el = document.getElementById('valor-riesgo');
+    if (el) el.textContent = 'No disponible';
+  }
+
+  // --- Inflación Mensual ---
+  try {
+    const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    historialMacro.inflacion = data; // guardar historial completo
+    const ultimo = data[data.length - 1];
+
+    const elValor = document.getElementById('valor-inflacion');
+    const elFecha = document.getElementById('fecha-inflacion');
+
+    if (elValor) {
+      elValor.textContent = `${ultimo.valor.toLocaleString('es-AR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
+    }
+    if (elFecha && ultimo.fecha) {
+      elFecha.textContent = `Dato de ${formatearFecha(ultimo.fecha)}`;
+    }
+  } catch (err) {
+    console.error('Error Inflación:', err);
+    const el = document.getElementById('valor-inflacion');
+    if (el) el.textContent = 'No disponible';
+  }
+
+  // --- Valor UVA ---
+  try {
+    const res = await fetch('https://api.argentinadatos.com/v1/finanzas/indices/uva');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const ultimo = data[data.length - 1];
+
+    const elValor = document.getElementById('valor-uva');
+    const elFecha = document.getElementById('fecha-uva');
+
+    if (elValor) {
+      elValor.textContent = `$ ${ultimo.valor.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+    if (elFecha && ultimo.fecha) {
+      elFecha.textContent = `Actualizado: ${formatearFecha(ultimo.fecha)}`;
+    }
+  } catch (err) {
+    console.error('Error UVA:', err);
+    const el = document.getElementById('valor-uva');
+    if (el) el.textContent = 'No disponible';
+  }
+
+  // --- Tasa Plazo Fijo (mejor TNA) ---
+  try {
+    const res = await fetch('https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijo');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    // Filtrar los que tienen tnaClientes válido y encontrar la mejor tasa
+    const tasasValidas = data.filter((b) => b.tnaClientes !== null && b.tnaClientes > 0);
+    const mejor = tasasValidas.reduce((max, b) => (b.tnaClientes > max.tnaClientes ? b : max), tasasValidas[0]);
+
+    const elValor = document.getElementById('valor-plazofijo');
+    const elFecha = document.getElementById('fecha-plazofijo');
+
+    if (elValor && mejor) {
+      const tnaPorcentaje = (mejor.tnaClientes * 100).toLocaleString('es-AR', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 1,
+      });
+      elValor.textContent = `${tnaPorcentaje}% TNA`;
+    }
+    if (elFecha && mejor) {
+      elFecha.textContent = `Mejor tasa: ${mejor.entidad}`;
+    }
+  } catch (err) {
+    console.error('Error Plazo Fijo:', err);
+    const el = document.getElementById('valor-plazofijo');
+    if (el) el.textContent = 'No disponible';
+  }
+}
+
+// ================================================
+// GRÁFICOS MACRO — ABRIR MODAL CON DATOS REALES
+// ================================================
+
+const MACRO_CONFIG = {
+  riesgo: {
+    color: '#f59e0b',
+    labelSufijo: 'puntos',
+    formatY: (v) => v.toLocaleString('es-AR'),
+    tooltipPrefix: '',
+    tooltipSuffix: ' pts',
+    periodos: [
+      { label: '7 Días', valor: 7 },
+      { label: '1 Mes', valor: 30 },
+      { label: '6 Meses', valor: 180 },
+    ],
+  },
+  inflacion: {
+    color: '#ec4899',
+    labelSufijo: '%',
+    formatY: (v) => `${v}%`,
+    tooltipPrefix: '',
+    tooltipSuffix: '%',
+    periodos: [
+      { label: '3 Meses', valor: 3 },
+      { label: '6 Meses', valor: 6 },
+      { label: '1 Año', valor: 12 },
+    ],
+  },
+};
+
+// Configuración original de los botones de período (para restaurar al abrir dólar)
+const PERIODOS_ORIGINALES = [
+  { label: '7 Días', valor: 7 },
+  { label: '1 Mes', valor: 30 },
+  { label: '6 Meses', valor: 180 },
+];
+
+/**
+ * Actualiza los botones de período según la config.
+ */
+function actualizarBotonesPeriodo(periodos) {
+  btnsPeriodo.forEach((btn, i) => {
+    if (periodos[i]) {
+      btn.textContent = periodos[i].label;
+      btn.setAttribute('data-dias', periodos[i].valor);
+    }
+  });
+}
+
+/**
+ * Abre el modal de gráfico para un indicador macro.
+ */
+function abrirModalMacro(tipo) {
+  macroSeleccionado = tipo;
+  casaSeleccionada = null;
+  modalTitulo.textContent = `Historial — ${NOMBRES_MACRO[tipo]}`;
+
+  // Cambiar botones de período según el tipo macro
+  actualizarBotonesPeriodo(MACRO_CONFIG[tipo].periodos);
+
+  // Resetear período al primer botón
+  btnsPeriodo.forEach((btn) => btn.classList.remove('activo'));
+  btnsPeriodo[0].classList.add('activo');
+
+  chkTendencia.checked = false;
+  chkMaxMin.checked = false;
+
+  modal.classList.add('activo');
+  modal.setAttribute('aria-hidden', 'false');
+
+  const dias = parseInt(btnsPeriodo[0].getAttribute('data-dias'), 10);
+  renderizarGraficoMacro(dias);
+}
+
+/**
+ * Renderiza un gráfico de líneas con datos reales del historial macro.
+ */
+function renderizarGraficoMacro(cantDias) {
+  const datos = historialMacro[macroSeleccionado];
+  if (!datos || datos.length === 0) return;
+
+  // Tomar los últimos N datos
+  const recorte = datos.slice(-cantDias);
+
+  const labels = recorte.map((d) => {
+    const f = new Date(d.fecha);
+    return f.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  });
+  const valores = recorte.map((d) => d.valor);
+
+  if (chartActual) {
+    chartActual.destroy();
+    chartActual = null;
+  }
+
+  const config = MACRO_CONFIG[macroSeleccionado];
+  const ctx = document.getElementById('historialChart').getContext('2d');
+
+  const datasets = [
+    {
+      label: `${NOMBRES_MACRO[macroSeleccionado]} — ${config.labelSufijo}`,
+      data: valores,
+      borderColor: config.color,
+      backgroundColor: `${config.color}1A`,
+      borderWidth: 2,
+      pointRadius: cantDias <= 30 ? 3 : 0,
+      pointHoverRadius: 5,
+      fill: true,
+      tension: 0.3,
+    },
+  ];
+
+  // Tendencia
+  if (chkTendencia.checked && valores.length > 1) {
+    const inicio = valores[0];
+    const fin = valores[valores.length - 1];
+    const tendencia = valores.map((_, i) =>
+      parseFloat((inicio + (fin - inicio) * (i / (valores.length - 1))).toFixed(2))
+    );
+    datasets.push({
+      label: 'Tendencia',
+      data: tendencia,
+      borderColor: '#60a5fa',
+      borderWidth: 2,
+      borderDash: [8, 4],
+      pointRadius: 0,
+      fill: false,
+      tension: 0,
+    });
+  }
+
+  // Máx / Mín
+  const maxVal = Math.max(...valores);
+  const minVal = Math.min(...valores);
+
+  if (chkMaxMin.checked) {
+    datasets.push({
+      label: `Máx: ${config.formatY(maxVal)}`,
+      data: valores.map((v) => (v === maxVal ? v : null)),
+      borderColor: '#f87171',
+      backgroundColor: '#f87171',
+      pointRadius: 8,
+      pointStyle: 'triangle',
+      showLine: false,
+    });
+    datasets.push({
+      label: `Mín: ${config.formatY(minVal)}`,
+      data: valores.map((v) => (v === minVal ? v : null)),
+      borderColor: '#fbbf24',
+      backgroundColor: '#fbbf24',
+      pointRadius: 8,
+      pointStyle: 'triangle',
+      pointRotation: 180,
+      showLine: false,
+    });
+  }
+
+  chartActual = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#9ca3b4', font: { size: 12 } },
+        },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          titleColor: '#e8eaf0',
+          bodyColor: '#e8eaf0',
+          borderColor: 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          callbacks: {
+            label: (context) =>
+              `${context.dataset.label}: ${config.tooltipPrefix}${context.parsed.y.toLocaleString('es-AR')}${config.tooltipSuffix}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#6b7280', maxRotation: 45 },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+        y: {
+          ticks: {
+            color: '#6b7280',
+            callback: (v) => config.formatY(v),
+          },
+          grid: { color: 'rgba(255,255,255,0.04)' },
+        },
+      },
+    },
+  });
+}
+
+// Click en tarjetas macro
+document.querySelectorAll('.card-clickable[data-macro]').forEach((card) => {
+  card.addEventListener('click', () => {
+    const tipo = card.getAttribute('data-macro');
+    if (tipo && historialMacro[tipo] && historialMacro[tipo].length > 0) {
+      abrirModalMacro(tipo);
+    }
+  });
 });
 
-chkMaxMin.addEventListener('change', () => {
-  const diasActivos = parseInt(
-    document.querySelector('.btn-periodo.activo').getAttribute('data-dias'), 10
-  );
-  renderizarGrafico(diasActivos);
-});
+// ================================================
+// OBTENER DATOS DEL MERCADO FINANCIERO
+// ================================================
+// ================================================
+// OBTENER DATOS DEL MERCADO FINANCIERO (TICKER)
+// ================================================
+
+async function obtenerDatosMercado() {
+  const tickerWrap = document.querySelector('.ticker-wrap');
+  const tickerMove = document.getElementById('market-ticker');
+  const btnPrev = document.querySelector('.ticker-btn.prev');
+  const btnNext = document.querySelector('.ticker-btn.next');
+
+  if (!tickerMove) return;
+
+  try {
+    const res = await fetch('mercado_data.json');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const datos = await res.json();
+
+    // Aplanar los datos separados por categorías
+    const activosPlanos = [];
+    if (datos.activos) {
+      Object.keys(datos.activos).forEach(categoria => {
+        const activos = datos.activos[categoria];
+        for (const [ticker, data] of Object.entries(activos)) {
+          activosPlanos.push({ ticker, ...data });
+        }
+      });
+    }
+
+    if (activosPlanos.length === 0) throw new Error('No hay activos');
+
+    // Limpiar ticker
+    tickerMove.innerHTML = '';
+
+    // Generar HTML para cada activo
+    const generarHTMLActivo = (activo) => {
+      const v = activo.variacion_pct;
+      const claseColor = v >= 0 ? 'up' : 'down';
+      const signo = v >= 0 ? '▲ +' : '▼ ';
+      const precioFmt = activo.precio.toLocaleString('es-AR', {
+        minimumFractionDigits: 2, maximumFractionDigits: 2
+      });
+
+      return `
+        <div class="ticker-item">
+          <span class="ticker-symbol">${activo.ticker}</span>
+          <span class="ticker-price">U$D ${precioFmt}</span>
+          <span class="ticker-change ${claseColor}">${signo}${Math.abs(v).toFixed(2)}%</span>
+        </div>
+      `;
+    };
+
+    // 1. Inyectar originales
+    let htmlContent = activosPlanos.map(generarHTMLActivo).join('');
+    // Loop para asegurar suficiente ancho inicial (al menos 3 iteraciones)
+    tickerMove.innerHTML = htmlContent + htmlContent + htmlContent;
+
+    // 2. Navegación manual
+    if (btnPrev && btnNext) {
+      const scrollStep = 200; // píxeles a mover por click
+
+      btnPrev.addEventListener('click', () => {
+        tickerWrap.scrollBy({ left: -scrollStep, behavior: 'smooth' });
+      });
+
+      btnNext.addEventListener('click', () => {
+        tickerWrap.scrollBy({ left: scrollStep, behavior: 'smooth' });
+      });
+    }
+
+  } catch (err) {
+    console.error('Error datos mercado:', err);
+    tickerMove.innerHTML = '<div class="ticker-item"><span class="ticker-symbol">MERCADO</span><span class="ticker-price">Cerrado o sin datos</span></div>';
+  }
+}
 
 // ================================================
 // INICIALIZACIÓN
 // ================================================
 obtenerCotizaciones();
 obtenerDatosBCRA();
+obtenerDatosMacro();
+obtenerDatosMercado();

@@ -8,6 +8,16 @@ urllib3.disable_warnings()
 
 URL_CATALOGO = "https://api.bcra.gob.ar/estadisticas/v4.0/Monetarias"
 
+# IDs de las variables que nos interesan
+ID_RESERVAS_TOTALES = 1
+ID_COMPRA_DIVISAS = 78
+ID_ORGANISMOS_INTERNACIONALES = 79
+ID_SECTOR_PUBLICO = 80
+ID_EFECTIVO_MINIMO = 81
+ID_OTRAS_OPERACIONES = 82
+
+IDS_DESGLOSE = [ID_COMPRA_DIVISAS, ID_ORGANISMOS_INTERNACIONALES, ID_SECTOR_PUBLICO, ID_EFECTIVO_MINIMO, ID_OTRAS_OPERACIONES]
+
 def generar_json_bcra():
     try:
         print("Consultando la API v4.0 del BCRA...")
@@ -18,22 +28,47 @@ def generar_json_bcra():
         
         datos = response.json().get("results", [])
 
-        # Variables para guardar nuestros datos
+        # Variables principales
         reservas_totales = 0
         fecha_reservas = ""
         intervencion_diaria = 0
         fecha_intervencion = ""
 
-        # Buscamos exactamente los IDs 1 y 78
+        # Desglose de variación de reservas
+        desglose = []
+
+        NOMBRES_DESGLOSE = {
+            ID_COMPRA_DIVISAS: "Compra de divisas (MULC)",
+            ID_ORGANISMOS_INTERNACIONALES: "Organismos internacionales",
+            ID_SECTOR_PUBLICO: "Sector público",
+            ID_EFECTIVO_MINIMO: "Efectivo mínimo",
+            ID_OTRAS_OPERACIONES: "Otras operaciones",
+        }
+
         for item in datos:
-            if item["idVariable"] == 1:
+            id_var = item["idVariable"]
+
+            if id_var == ID_RESERVAS_TOTALES:
                 reservas_totales = item["ultValorInformado"]
                 fecha_reservas = item["ultFechaInformada"]
-            elif item["idVariable"] == 78:
+
+            elif id_var == ID_COMPRA_DIVISAS:
                 intervencion_diaria = item["ultValorInformado"]
                 fecha_intervencion = item["ultFechaInformada"]
 
-        # Armamos el JSON final limpio para la web
+            # Capturar todos los IDs del desglose
+            if id_var in IDS_DESGLOSE:
+                desglose.append({
+                    "id": id_var,
+                    "nombre": NOMBRES_DESGLOSE.get(id_var, item.get("descripcion", "")),
+                    "valor": item["ultValorInformado"],
+                    "fecha": item["ultFechaInformada"]
+                })
+
+        # Ordenar desglose por ID para consistencia
+        desglose.sort(key=lambda x: x["id"])
+
+        # Armamos el JSON final
         resultado = {
             "ultima_actualizacion_script": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "reservas": {
@@ -43,7 +78,8 @@ def generar_json_bcra():
             "intervencion": {
                 "valor": intervencion_diaria,
                 "fecha": fecha_intervencion
-            }
+            },
+            "desglose_variacion": desglose
         }
 
         # Guardamos el archivo

@@ -18,6 +18,15 @@
         <p>Cotizaciones del dólar actualizadas</p>
     </header>
 
+    <!-- Cinta de Cotizaciones (Stock Ticker) -->
+    <div class="ticker-wrap">
+        <div class="ticker-move" id="market-ticker">
+            <!-- Items inyectados por JS -->
+        </div>
+        <button class="ticker-btn prev" aria-label="Anterior">&lsaquo;</button>
+        <button class="ticker-btn next" aria-label="Siguiente">&rsaquo;</button>
+    </div>
+
     <main>
 
         <!-- Sección: Cotizaciones -->
@@ -32,6 +41,7 @@
                     <dd>$1.095,00</dd>
                 </dl>
                 <p class="variacion">— %</p>
+                <span class="actualizacion">Cargando…</span>
             </article>
 
             <article data-casa="blue">
@@ -43,6 +53,7 @@
                     <dd>$1.215,00</dd>
                 </dl>
                 <p class="variacion">— %</p>
+                <span class="actualizacion">Cargando…</span>
             </article>
 
             <article data-casa="bolsa">
@@ -54,6 +65,7 @@
                     <dd>$1.170,00</dd>
                 </dl>
                 <p class="variacion">— %</p>
+                <span class="actualizacion">Cargando…</span>
             </article>
 
             <article data-casa="tarjeta">
@@ -65,6 +77,7 @@
                     <dd>$1.420,00</dd>
                 </dl>
                 <p class="variacion">— %</p>
+                <span class="actualizacion">Cargando…</span>
             </article>
 
         </section>
@@ -77,13 +90,49 @@
                 <article class="bcra-card" id="card-reservas">
                     <h3>Reservas Internacionales Brutas</h3>
                     <p class="bcra-valor" id="valor-reservas">U$D 28.500 Millones</p>
-                    <span class="bcra-etiqueta">Último dato disponible</span>
+                    <span class="bcra-etiqueta" id="fecha-reservas">Cargando…</span>
+
+                    <button class="btn-desglose" id="btn-toggle-desglose">
+                        <span>Ver desglose de variación diaria</span>
+                        <span class="btn-desglose-icono">▶</span>
+                    </button>
                 </article>
 
                 <article class="bcra-card" id="card-intervencion">
                     <h3>Intervención Diaria (MULC)</h3>
                     <p class="bcra-valor" id="valor-intervencion">+ U$D 45 Millones</p>
-                    <span class="bcra-etiqueta">Mercado Único y Libre de Cambios</span>
+                    <span class="bcra-etiqueta" id="fecha-intervencion">Cargando…</span>
+                </article>
+            </div>
+        </section>
+
+        <!-- Sección: Datos Macroeconómicos -->
+        <section class="seccion-datos" aria-label="Datos macroeconómicos">
+            <h2>Datos Macroeconómicos</h2>
+
+            <div class="dashboard-grid">
+                <article class="card card-macro card-clickable" id="card-riesgo" data-macro="riesgo">
+                    <h3>Riesgo País</h3>
+                    <p class="macro-valor" id="valor-riesgo">Cargando…</p>
+                    <span class="actualizacion" id="fecha-riesgo"></span>
+                </article>
+
+                <article class="card card-macro card-clickable" id="card-inflacion" data-macro="inflacion">
+                    <h3>Inflación Mensual</h3>
+                    <p class="macro-valor" id="valor-inflacion">Cargando…</p>
+                    <span class="actualizacion" id="fecha-inflacion"></span>
+                </article>
+
+                <article class="card card-macro" id="card-uva">
+                    <h3>Valor UVA</h3>
+                    <p class="macro-valor" id="valor-uva">Cargando…</p>
+                    <span class="actualizacion" id="fecha-uva"></span>
+                </article>
+
+                <article class="card card-macro" id="card-plazofijo">
+                    <h3>Tasa Plazo Fijo</h3>
+                    <p class="macro-valor" id="valor-plazofijo">Cargando…</p>
+                    <span class="actualizacion" id="fecha-plazofijo">Mejor TNA del mercado</span>
                 </article>
             </div>
         </section>
@@ -133,6 +182,25 @@
                         <input type="checkbox" id="chk-maxmin"> Ver Máx/Mín
                     </label>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal: Desglose de Reservas -->
+    <div id="modal-desglose" class="modal" aria-hidden="true">
+        <div class="modal-overlay"></div>
+        <div class="modal-contenido modal-desglose-contenido">
+            <div class="modal-header">
+                <h2>Desglose de Variación de Reservas</h2>
+                <button id="modal-desglose-cerrar" class="modal-btn-cerrar" aria-label="Cerrar">&times;</button>
+            </div>
+
+            <div id="desglose-items">
+                <!-- Items inyectados por JS -->
+            </div>
+
+            <div class="modal-desglose-footer" id="desglose-footer">
+                <!-- Fecha inyectada por JS -->
             </div>
         </div>
     </div>
