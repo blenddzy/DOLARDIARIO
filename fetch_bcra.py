@@ -23,7 +23,7 @@ def generar_json_bcra():
         print("Consultando la API v4.0 del BCRA...")
         headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
         
-        response = requests.get(URL_CATALOGO, headers=headers, verify=False)
+        response = requests.get(URL_CATALOGO, headers=headers, verify=False, timeout=30)
         response.raise_for_status()
         
         datos = response.json().get("results", [])
