@@ -1,5 +1,5 @@
 {
-    "ultima_actualizacion": "2026-06-18 22:58:16",
+    "ultima_actualizacion": "2026-06-19 22:08:45",
     "activos": {
         "argentina": {
             "YPF": {
@@ -22,7 +22,7 @@
         "global": {
             "SPY": {
                 "precio": 746.74,
-                "variacion_pct": 0.78
+                "variacion_pct": 1.04
             },
             "QQQ": {
                 "precio": 740.62,
