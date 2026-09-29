@@ -1,40 +1,40 @@
 {
-    "ultima_actualizacion": "2026-09-25 23:54:08",
+    "ultima_actualizacion": "2026-09-29 00:53:25",
     "activos": {
         "argentina": {
             "YPF": {
-                "precio": 52.1,
-                "variacion_pct": -2.82
+                "precio": NaN,
+                "variacion_pct": NaN
             },
             "GGAL": {
-                "precio": 38.74,
-                "variacion_pct": -2.15
+                "precio": NaN,
+                "variacion_pct": NaN
             },
             "PAM": {
-                "precio": 77.82,
-                "variacion_pct": -1.08
+                "precio": NaN,
+                "variacion_pct": NaN
             },
             "BMA": {
-                "precio": 68.86,
-                "variacion_pct": -3.01
+                "precio": NaN,
+                "variacion_pct": NaN
             }
         },
         "global": {
             "SPY": {
-                "precio": 771.35,
-                "variacion_pct": 0.54
+                "precio": NaN,
+                "variacion_pct": NaN
             },
             "QQQ": {
-                "precio": 744.5,
-                "variacion_pct": 0.46
+                "precio": NaN,
+                "variacion_pct": NaN
             },
             "AAPL": {
-                "precio": 341.07,
-                "variacion_pct": 1.53
+                "precio": NaN,
+                "variacion_pct": NaN
             },
             "MSFT": {
-                "precio": 516.17,
-                "variacion_pct": 3.66
+                "precio": NaN,
+                "variacion_pct": NaN
             }
         }
     }
