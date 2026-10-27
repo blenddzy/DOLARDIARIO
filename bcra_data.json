@@ -1,43 +1,43 @@
 {
-    "ultima_actualizacion_script": "2026-10-23 23:47:23",
+    "ultima_actualizacion_script": "2026-10-27 00:17:32",
     "reservas": {
-        "valor": 50228.0,
-        "fecha": "2026-10-21"
+        "valor": 50169.0,
+        "fecha": "2026-10-22"
     },
     "intervencion": {
-        "valor": 103.5,
-        "fecha": "2026-10-20"
+        "valor": 46.0,
+        "fecha": "2026-10-21"
     },
     "desglose_variacion": [
         {
             "id": 78,
             "nombre": "Compra de divisas (MULC)",
-            "valor": 103.5,
-            "fecha": "2026-10-20"
+            "valor": 46.0,
+            "fecha": "2026-10-21"
         },
         {
             "id": 79,
             "nombre": "Organismos internacionales",
-            "valor": 0.0,
-            "fecha": "2026-10-20"
+            "valor": 5.0,
+            "fecha": "2026-10-21"
         },
         {
             "id": 80,
             "nombre": "Sector p\u00fablico",
-            "valor": -13.2339,
-            "fecha": "2026-10-20"
+            "valor": -17.2426,
+            "fecha": "2026-10-21"
         },
         {
             "id": 81,
             "nombre": "Efectivo m\u00ednimo",
-            "valor": -31.7115,
-            "fecha": "2026-10-20"
+            "valor": -7.0084,
+            "fecha": "2026-10-21"
         },
         {
             "id": 82,
             "nombre": "Otras operaciones",
-            "valor": -10.1329,
-            "fecha": "2026-10-20"
+            "valor": 0.0165,
+            "fecha": "2026-10-21"
         }
     ]
 }
